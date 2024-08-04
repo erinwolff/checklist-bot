@@ -111,6 +111,14 @@ class Commands(Extension):
             modal_ctx: ModalContext = await ctx.bot.wait_for_modal(modal)
             user_input = modal_ctx.responses["short_text"]
 
+            # if length of checklist items is greater than 25, return an ephemeral message and don't add the item
+            if len(checklist_items) >= 25:
+                await modal_ctx.send(
+                    "Checklist is full. Please delete some items before adding more.",
+                    ephemeral=True,
+                )
+                return
+
             # Append the new item to the checklist_items list
             checklist_items.append(user_input)
             self.save_checklist(user_id, checklist_items)  # Save to the database
@@ -125,6 +133,13 @@ class Commands(Extension):
         except Exception as e:
             await ctx.send("Something went wrong. Please try again.")
             print(f"Error handling add_item modal: {e}")
+
+    def create_button_rows(self, buttons):
+        rows = []
+        for i in range(0, len(buttons), 5):
+            row = buttons[i : i + 5]
+            rows.append(ActionRow(*row))
+        return rows
 
     async def handle_complete_item(self, ctx, user_id, checklist_items):
         # iterate through the checklist items and display buttons for each item in the checklist
@@ -143,8 +158,8 @@ class Commands(Extension):
         if not checklistItemButtons:
             await ctx.send("No items to complete.")
             return
-        buttons = ActionRow(*checklistItemButtons, self.cancel_button)
-        await ctx.send(components=[buttons])
+        buttons = self.create_button_rows(checklistItemButtons + [self.cancel_button])
+        await ctx.send(components=buttons)
         # when a button is clicked, strike through the item
         try:
             event: Component = await ctx.bot.wait_for(Component)
@@ -191,8 +206,8 @@ class Commands(Extension):
         if not checklistItemButtons:
             await ctx.send("No items to delete.")
             return
-        buttons = ActionRow(*checklistItemButtons, self.cancel_button)
-        await ctx.send(components=[buttons])
+        buttons = self.create_button_rows(checklistItemButtons + [self.cancel_button])
+        await ctx.send(components=buttons)
         try:
             event: Component = await ctx.bot.wait_for(Component)
             # when cancel button is clicked, remove the buttons
