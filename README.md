@@ -1,7 +1,7 @@
 # Discord Checklist Bot
 
 This bot allows you to create and manage checklists directly within Discord. 
-*At this time, only one checklist per user.*
+*At this time, only one checklist per user, up to 25 items per checklist.*
 
 ## Features
 
