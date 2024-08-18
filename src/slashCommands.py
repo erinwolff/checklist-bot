@@ -14,6 +14,23 @@ from interactions import (
 from interactions.api.events import Component
 import sqlite3
 
+# Create the buttons
+add_button = Button(
+    style=ButtonStyle.PRIMARY,
+    label="Add",
+    custom_id="add_item",
+)
+complete_button = Button(
+    style=ButtonStyle.SUCCESS,
+    label="Complete",
+    custom_id="complete_item",
+)
+delete_button = Button(
+    style=ButtonStyle.DANGER,
+    label="Delete",
+    custom_id="delete_item",
+)
+buttons = ActionRow(add_button, complete_button, delete_button)
 
 class Commands(Extension):
     def __init__(self, bot):
@@ -50,7 +67,12 @@ class Commands(Extension):
             "SELECT checklist_items FROM checklists WHERE user_id = ?", (user_id,)
         )
         row = cursor.fetchone()
-        return row[0].split(",") if row else []
+        if row:
+            items = row[0].split(",")
+            # Filter out empty strings
+            return list(filter(None, items))  
+        else:
+            return [] 
 
     def save_checklist(self, user_id, checklist_items):
         items_str = ",".join(checklist_items)
@@ -62,30 +84,20 @@ class Commands(Extension):
         self.db.commit()
 
     async def send_checklist_embed(self, ctx, checklist_items):
-        embed = Embed(
-            title=f"{ctx.author.display_name}'s Checklist",
-            description="\n".join(
-                [f"{i+1}. {item}" for i, item in enumerate(checklist_items)]
-            ),
-        )
-        add_button = Button(
-            style=ButtonStyle.PRIMARY,
-            label="Add",
-            custom_id="add_item",
-        )
-        complete_button = Button(
-            style=ButtonStyle.SUCCESS,
-            label="Complete",
-            custom_id="complete_item",
-        )
-        delete_button = Button(
-            style=ButtonStyle.DANGER,
-            label="Delete",
-            custom_id="delete_item",
-        )
-        buttons = ActionRow(add_button, complete_button, delete_button)
-
-        await ctx.send(embeds=[embed], components=[buttons])
+        if not checklist_items:
+            embed = Embed(
+                title=f"{ctx.author.display_name}'s Checklist",
+                description="Your checklist is empty.",
+            )                      
+            await ctx.send(embeds=[embed], components=[buttons])
+        else:  
+            embed = Embed(
+                title=f"{ctx.author.display_name}'s Checklist",            
+                description="\n".join(
+                    [f"{i+1}. {item}" for i, item in enumerate(checklist_items)]
+                ),
+            )            
+            await ctx.send(embeds=[embed], components=[buttons])
 
     @listen(Component)
     async def on_component(self, event: Component):
@@ -118,8 +130,16 @@ class Commands(Extension):
                     ephemeral=True,
                 )
                 return
-
-            # Append the new item to the checklist_items list
+            
+            # if the item is already in the checklist, return an ephemeral message and don't add the item
+            if user_input in checklist_items:
+                await modal_ctx.send(
+                    "Item already exists in the checklist. Please add a different item.",
+                    ephemeral=True,
+                )
+                return
+            
+            # Append the new item to the checklist           
             checklist_items.append(user_input)
             self.save_checklist(user_id, checklist_items)  # Save to the database
 
