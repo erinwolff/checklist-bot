@@ -2,3 +2,4 @@ config.json
 checklist-bot-venv/
 __pycache__/
 checklists.db
+.venv/
